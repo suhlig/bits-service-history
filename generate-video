@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# expects ../bits-service* to exist
+for project in bits-service bits-service-release bits-service-ci bits-service-client; do
+  gource --output-custom-log "logs/$project.txt" "../$project"
+done
+
+cat logs/bits-service*.txt  | sort -n > logs/combined.txt
+
+# TODO
+# fetch avatars
+# remove ignored users
+# create symlinks from mailmap
+
+# scale the logo
+sips avatars/Flintstone-CI.png -Z 64 --out avatars/bits-service.png
+
+framerate=60
+ppm_file=bits-service-history.ppm
+
+# render to ppm
+gource \
+    --user-image-dir avatars \
+    --time-scale 1 \
+    --seconds-per-day 0.1 \
+    --logo avatars/bits-service.png \
+    --title "History of the bits-service" \
+    --user-filter 'Pipeline|Pool|Git|Pivotal|Your' \
+    --max-user-speed 100 \
+    -1280x720 \
+    --output-framerate "$framerate" \
+    --output-ppm-stream "$ppm_file" \
+  logs/combined.txt
+
+# convert to mp4
+ffmpeg -y \
+    -r "$framerate" \
+    -f image2pipe \
+    -vcodec ppm \
+    -i "$ppm_file" \
+    -vcodec libx264 \
+    -preset ultrafast \
+    -pix_fmt yuv420p \
+    -crf 1 \
+    -threads 0 \
+    -bf 0 \
+  bits-service-history.mp4
